@@ -23,6 +23,8 @@ package org.eu.ingwar.tools.arquillian.extension.suite;
 import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquilianSuiteDeployment;
 import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ArquillianSuiteDeployment;
 import org.eu.ingwar.tools.arquillian.extension.suite.annotations.ExtendedSuiteScoped;
+import org.jboss.arquillian.config.descriptor.api.ArquillianDescriptor;
+import org.jboss.arquillian.config.descriptor.api.ExtensionDef;
 import org.jboss.arquillian.container.spi.client.deployment.DeploymentScenario;
 import org.jboss.arquillian.container.spi.event.DeployManagedDeployments;
 import org.jboss.arquillian.container.spi.event.UnDeployManagedDeployments;
@@ -42,6 +44,8 @@ import org.jboss.arquillian.test.spi.event.suite.BeforeSuite;
 import org.reflections.Reflections;
 import org.reflections.util.ClasspathHelper;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -63,11 +67,10 @@ public class ArquillianSuiteExtension implements LoadableExtension {
     @Override
     public void register(ExtensionBuilder builder) {
         deploymentClass = getDeploymentClass();
-        if (deploymentClass != null) {
-            builder.observer(SuiteDeployer.class).context(ExtendedSuiteContextImpl.class);
-        } else {
-            log.log(Level.WARNING, "arquillian-suite-deployment: Cannot find class annotated with @ArquillianSuiteDeployment, will try normal way..");
+        if (deploymentClass == null) {
+        	log.log(Level.WARNING, "arquillian-suite-deployment: Cannot find class annotated with @ArquillianSuiteDeployment, will use configuration from arquillian.xml or use standard deployment ...");
         }
+        builder.observer(SuiteDeployer.class).context(ExtendedSuiteContextImpl.class);
     }
 
     /**
@@ -89,12 +92,14 @@ public class ArquillianSuiteExtension implements LoadableExtension {
 				return null;
 			}
 		}
-		// Verify if has more than one @ArquillianSuiteDeployment.
+		// Verify if has more than one @ArquillianSuiteDeployment. We cannot decide in cases we find more than one class.
+		// in that case we will return null and hope there is a configuration in arquillian xml.
 		if (results.size() > 1) {
 			for (final Class<?> type : results) {
 				log.log(Level.SEVERE, "arquillian-suite-deployment: Duplicated class annotated with @ArquillianSuiteDeployment: {0}", type.getName());
 			}
-			throw new IllegalStateException("Duplicated classess annotated with @ArquillianSuiteDeployment");
+			log.log(Level.SEVERE, "arquillian-suite-deployment: Please configure the class to use with the arquillian.xml configuration file");
+			return null;
 		}
 		// Return the single result.
 		return results.iterator().next();
@@ -123,6 +128,36 @@ public class ArquillianSuiteExtension implements LoadableExtension {
         private boolean suiteDeploymentGenerated;
         private boolean deployDeployments;
         private boolean undeployDeployments;
+
+        /**
+         * Callback for getting notified with configuration data. Here we use the optionally configured deployment class.
+         * 
+         * @param descriptorCreated The arquillian configuration data.
+         */
+    	public void configure(@Observes ArquillianDescriptor descriptorCreated) {
+    		Map<String, String> properties = extractPropertiesFromDescriptor("suite", descriptorCreated);
+    		String deploymentClassName = properties.get("deploymentClass");
+    		
+    		if (deploymentClassName != null) {
+    	    	try {
+    	    		deploymentClass = Class.forName(deploymentClassName);
+    	    		log.log(Level.INFO, "arquillian-suite-deployment: Using deployment class {0} from configuration.", deploymentClassName);
+    	    		
+    			} catch (ClassNotFoundException e) {
+    				log.log(Level.SEVERE, "arquillian-suite-deployment: Cannot load Class from configuration.", e);
+    			}
+        	}
+        }
+    	
+        private Map<String, String> extractPropertiesFromDescriptor(String extenstionName, ArquillianDescriptor descriptor)
+        {
+        	ExtensionDef extension = descriptor.extension(extenstionName);
+        	if (extension != null) {
+        		return extension.getExtensionProperties();
+        	}
+        		
+            return Collections.<String, String> emptyMap();
+        }
 
         /**
          * Method ignoring DeployManagedDeployments events if already deployed.

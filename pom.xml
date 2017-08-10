@@ -4,7 +4,7 @@
 
     <groupId>org.eu.ingwar.tools</groupId>
     <artifactId>arquillian-suite-extension</artifactId>
-    <version>1.1.5-SNAPSHOT</version>
+    <version>1.1.4_patch-config</version>
     <packaging>jar</packaging>
     
     
@@ -41,13 +41,27 @@
         </developer>
     </developers>
 
-    <distributionManagement>
-        <repository>
-            <id>bintray-ingwarsw-org.eu.ingwar.tools</id>
-            <name>ingwarsw-org.eu.ingwar.tools</name>
-            <url>https://api.bintray.com/maven/ingwarsw/org.eu.ingwar.tools/arquillian-suite-extension/;publish=1</url>
-        </repository>
-    </distributionManagement>
+	<distributionManagement>
+		<!-- The repository to which the artifact should be deployed. Just type 
+			"mvn clean source:jar deploy" do deploy a new version to maven. -->
+		<repository>
+			<id>release-nexus-apa-at</id>
+			<name>APA Nexus Repository</name>
+			<url>http://nexus.apa.at/nexus/content/repositories/releases/</url>
+		</repository>
+		<!-- For snapshot versions. (optional) -->
+	    <snapshotRepository>
+	        <id>snapshot-nexus-apa-at</id>
+	        <name>APA-IT Snapshot Repository</name>
+	        <url>http://nexus.apa.at/nexus/content/repositories/snapshots</url>
+	    </snapshotRepository>
+	    <!-- For Maven Sites. (optional) -->
+	    <site>
+	        <id>site-nexus-apa-at</id>
+	        <name>APA-IT Sites Repository</name>
+	        <url>dav:http://nexus.apa.at/nexus/content/sites/site/AWIInterface</url>
+	    </site>
+	</distributionManagement>
 
     <properties>
         <!-- Encodings -->
